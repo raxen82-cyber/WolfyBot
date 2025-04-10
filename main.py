@@ -181,7 +181,7 @@ async def on_message(message):
         return
     await bot.process_commands(message)
 
-status = cycle(['fare il bot','tetris','fare il bot','PAC-MAN','pallone'])
+status = cycle(['fare il bot','tetris','fare il bot','PAC-MAN','calcetto'])
 
 @tasks.loop(seconds=10)
 async def change_status():
