@@ -6,6 +6,7 @@ from keep_alive import keep_alive
 import time
 from itertools import cycle
 
+# Assicurati che questi privileged intents siano abilitati anche nel Developer Portal
 intents = discord.Intents.default()
 intents.voice_states = True
 intents.presences = True
@@ -169,11 +170,10 @@ async def cleanup_inactive_users():
                 del updated_data[user_id]
     save_data(updated_data)
 
-@bot.command(name="pulisci")
-@commands.has_permissions(administrator=True)
-async def pulisci(ctx):
+@bot.tree.command(name="pulisci")
+async def pulisci(interaction: discord.Interaction):
     await cleanup_inactive_users()
-    await ctx.send("✅ Pulizia eseguita con successo!")
+    await interaction.response.send_message("✅ Pulizia eseguita con successo!", ephemeral=True)
 
 @bot.event
 async def on_message(message):
