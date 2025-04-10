@@ -360,7 +360,7 @@ async def send_weekly_games_chart_logic(channel):
 
     os.remove(nome_file_grafico) # Pulizia del file temporaneo
 
-@tasks.loop(time=discord.ext.tasks.time(11, 0, 6)) # Esegue alle 11:00 ogni domenica (giorno 6 è domenica)
+@tasks.loop(time=discord.ext.tasks.time(hour=11, minute=0, day_of_week=0)) # Esegue alle 11:00 ogni domenica (giorno 6 è domenica)
 async def send_weekly_games_chart():
     channel = discord.utils.get(bot.get_all_channels(), name="attività-giocatori")
     if channel:
