@@ -333,7 +333,7 @@ async def send_weekly_games_chart_logic(channel):
         for activity in activity_history:
             if activity.get("game") and activity.get("start_time"):
                 start_time = datetime.datetime.fromtimestamp(activity["start_time"])
-                if start_time.isocalendar()[1] == settimana_corrente and start_time.year == anno_corrente:
+                 if start_time.isocalendar()[1] == settimana_corrente and start_time.year == anno_corrente:
                     games_data_settimanali[activity["game"].lower()] += 1
 
     if not games_data_settimanali:
@@ -360,7 +360,7 @@ async def send_weekly_games_chart_logic(channel):
 
     os.remove(nome_file_grafico) # Pulizia del file temporaneo
 
-@tasks.loop(hours=11, minutes=0, seconds=0, weekday=6) # Esegue alle 11:00 ogni domenica (giorno 6 è domenica)
+@tasks.loop(hours=11, minutes=0, seconds=0, weekday=6) # Esegue alle 11:00 ogni domenica
 async def send_weekly_games_chart():
     channel = discord.utils.get(bot.get_all_channels(), name="attività-giocatori")
     if channel:
