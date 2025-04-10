@@ -329,12 +329,12 @@ async def send_weekly_games_chart_logic(channel):
     games_data_settimanali = Counter()
     weekly_stats = load_weekly_stats().get("user_activity", {})
 
-    for user_id, activity_history in weekly_stats.items():
-        for activity in activity_history:
-            if activity.get("game") and activity.get("start_time"):
-                start_time = datetime.datetime.fromtimestamp(activity["start_time"])
-                 if start_time.isocalendar()[1] == settimana_corrente and start_time.year == anno_corrente:
-                    games_data_settimanali[activity["game"].lower()] += 1
+for user_id, activity_history in weekly_stats.items():
+        for activity in activity_history:
+            if activity.get("game") and activity.get("start_time"):
+                start_time = datetime.datetime.fromtimestamp(activity["start_time"])
+                if start_time.isocalendar()[1] == settimana_corrente and start_time.year == anno_corrente:
+                    games_data_settimanali[activity["game"].lower()] += 1
 
     if not games_data_settimanali:
         await channel.send("📊 Nessun dato di gioco disponibile per questa settimana per generare il grafico.")
