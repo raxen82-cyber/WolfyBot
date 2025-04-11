@@ -6,6 +6,7 @@ import datetime
 import pytz
 from collections import defaultdict
 from flask import Flask
+from discord import app_commands
 
 # Assicurati che questi privileged intents siano abilitati nel Developer Portal
 intents = discord.Intents.default()
@@ -14,7 +15,7 @@ intents.presences = True
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='/', intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents) # Cambiato il prefisso in '!'
 
 # Nomi dei canali
 TESTUALE_RIASSUNTO = "attività-giocatore"
@@ -40,6 +41,8 @@ BADGES = {
     "night_owl": "🦉",
     "most_active": "🏆"
 }
+
+TEST_GUILD_ID = 1173968763293536276  # Sostituisci con l'ID del tuo server di test
 
 async def get_active_players(guild):
     active_players = []
@@ -71,7 +74,7 @@ async def send_summary(guild):
                         inline=True
                     )
                     embed.color = color
-                    await channel.send(embed=embed)
+                await channel.send(embed=embed)
 
 # Task separata per inviare il messaggio di inattività ogni ora
 @tasks.loop(minutes=60)
@@ -159,10 +162,29 @@ app = Flask(__name__)
 def health_check():
     return "Bot is alive!"
 
-import discord
-from discord import app_commands
+@bot.tree.command(name="infowolf", description="Mostra informazioni sul bot.")
+async def infowolf_command(interaction: discord.Interaction):
+    await interaction.response.send_message("Ciao! Sono WolfyBot.")
 
-TEST_GUILD_ID = 1173968763293536276  # Sostituisci con l'ID del tuo server di test
+@bot.tree.command(name="saluta", description="Saluta un utente.")
+@app_commands.describe(utente="L'utente da salutare")
+async def saluta_comando(interaction: discord.Interaction, utente: discord.Member):
+    await interaction.response.send_message(f"Ciao {utente.mention}!")
+
+@bot.command(name="riassunto")
+async def manual_summary(ctx):
+    await send_summary(ctx.guild)
+
+@bot.command(name="pulisci")
+@commands.has_permissions(manage_messages=True)
+async def pulisci(ctx, amount: int):
+    await ctx.channel.purge(limit=amount + 1)
+    await ctx.send(f"🧹 Puliti {amount} messaggi.", delete_after=5)
+
+@pulisci.error
+async def pulisci_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("⚠️ Non hai i permessi per usare questo comando.")
 
 @bot.event
 async def on_ready():
@@ -174,11 +196,10 @@ async def on_ready():
     except Exception as e:
         print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
 
-    # Commenta temporaneamente le altre task per isolare il problema dei comandi slash
-    # send_periodic_summary.start()
-    # daily_channel_cleanup.start()
-    # send_weekly_stats.start()
-    # send_inactivity_message.start()
+    send_periodic_summary.start()
+    daily_channel_cleanup.start()
+    send_weekly_stats.start()
+    send_inactivity_message.start()
 
 @tasks.loop(seconds=60)
 async def send_periodic_summary():
@@ -197,22 +218,6 @@ async def on_presence_update(before, after):
         now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
         if after.activity and after.activity.type == discord.ActivityType.playing and after.voice and after.voice.channel:
             await update_weekly_stats(after, after.activity.name, now)
-
-
-@bot.command(name="riassunto")
-async def manual_summary(ctx):
-    await send_summary(ctx.guild)
-
-@bot.command(name="pulisci")
-@commands.has_permissions(manage_messages=True)
-async def pulisci(ctx, amount: int):
-    await ctx.channel.purge(limit=amount + 1)
-    await ctx.send(f"🧹 Puliti {amount} messaggi.", delete_after=5)
-
-@pulisci.error
-async def pulisci_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("⚠️ Non hai i permessi per usare questo comando.")
 
 # Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
 TOKEN = os.environ.get('DISCORD_TOKEN')
