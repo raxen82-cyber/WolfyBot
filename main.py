@@ -221,16 +221,19 @@ async def pulisci_error(ctx, error):
 @bot.event
 async def on_ready():
     print(f"Bot connesso come {bot.user}")
-    try:
-        guild = discord.Object(id=TEST_GUILD_ID) # Sincronizza i comandi solo nella guild di test
-        synced = await bot.tree.sync(guild=guild)
-        print(f"Sincronizzati {len(synced)} comandi applicazione nella guild di test")
-        print(f"Comandi sincronizzati: {synced}") # Aggiunto logging dettagliato
-    except Exception as e:
-        print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
+    guild = bot.get_guild(TEST_GUILD_ID)
+    if guild:
+        try:
+            synced = await bot.tree.sync(guild=guild)
+            print(f"Sincronizzati {len(synced)} comandi applicazione nella guild '{guild.name}' ({guild.id})")
+            print(f"Comandi sincronizzati: {synced}")
+        except Exception as e:
+            print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
+    else:
+        print(f"Guild di test con ID {TEST_GUILD_ID} non trovata.")
 
-    for guild in bot.guilds:
-        await send_summary(guild, initial=True) # Invia il messaggio iniziale all'avvio
+    for g in bot.guilds:
+        await send_summary(g, initial=True) # Invia il messaggio iniziale all'avvio
 
     send_inactivity_message.start() # Avvia il task di inattività
     daily_channel_cleanup.start()
