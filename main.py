@@ -176,10 +176,7 @@ async def send_periodic_summary():
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-    if 10 <= now.hour < 24:
-        for guild in bot.guilds:
-            await send_summary(guild)
+    pass # Rimossa la chiamata ridondante a send_summary
 
 @bot.event
 async def on_presence_update(before, after):
