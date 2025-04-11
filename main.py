@@ -225,6 +225,7 @@ async def on_ready():
         guild = discord.Object(id=TEST_GUILD_ID) # Sincronizza i comandi solo nella guild di test
         synced = await bot.tree.sync(guild=guild)
         print(f"Sincronizzati {len(synced)} comandi applicazione nella guild di test")
+        print(f"Comandi sincronizzati: {synced}") # Aggiunto logging dettagliato
     except Exception as e:
         print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
 
