@@ -43,7 +43,7 @@ BADGES = {
     "most_active": "🏆"
 }
 
-TEST_GUILD_ID = "1173968763293536276"  # Sostituisci con l'ID del tuo server di test
+TEST_GUILD_ID = 1173968763293536276  # Sostituisci con l'ID del tuo server di test
 
 async def get_active_players(guild):
     active_players = []
@@ -89,6 +89,23 @@ async def send_summary(guild, initial=False):
             # Invia il messaggio iniziale
             new_message = await channel.send(embed=embed)
             summary_message_ids[guild.id] = new_message.id
+
+async def clear_previous_activity_messages(guild):
+    channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
+    if channel:
+        stored_message_id = summary_message_ids.get(guild.id)
+        if stored_message_id:
+            try:
+                async for message in channel.history(limit=None, before=discord.Object(id=stored_message_id)):
+                    if message.author == bot.user:
+                        await message.delete()
+                print(f"Cancellati i messaggi di attività precedenti a {stored_message_id} nel canale {channel.name} in {guild.name}")
+            except discord.NotFound:
+                print(f"Il messaggio di riferimento {stored_message_id} non è stato trovato in {channel.name} in {guild.name}")
+            except discord.errors.Forbidden:
+                print(f"Non ho i permessi per cancellare i messaggi in {channel.name} in {guild.name}")
+        else:
+            print(f"Nessun messaggio di attività di riferimento trovato per {guild.name}.")
 
 async def clear_channel(channel):
     try:
@@ -184,6 +201,7 @@ async def manual_summary(ctx):
 async def pulisci(ctx, amount: int):
     await ctx.channel.purge(limit=amount + 1)
     await ctx.send(f"🧹 Puliti {amount} messaggi.", delete_after=5)
+    await clear_previous_activity_messages(ctx.guild) # Cancella i messaggi precedenti dopo la pulizia manuale
 
 @pulisci.error
 async def pulisci_error(ctx, error):
@@ -215,18 +233,22 @@ async def on_presence_update(before, after):
             if (not before.activity or before.activity.type != discord.ActivityType.playing) and (after.activity and after.activity.type == discord.ActivityType.playing):
                 # Un giocatore ha iniziato a giocare in un canale vocale
                 await send_summary(after.guild)
+                await clear_previous_activity_messages(after.guild) # Cancella dopo un nuovo aggiornamento
             elif (before.activity and before.activity.type == discord.ActivityType.playing) and (not after.activity or after.activity.type != discord.ActivityType.playing):
                 # Un giocatore ha smesso di giocare in un canale vocale
                 await send_summary(after.guild)
+                await clear_previous_activity_messages(after.guild) # Cancella dopo un nuovo aggiornamento
             elif before.activity and after.activity and before.activity.name != after.activity.name and after.activity.type == discord.ActivityType.playing:
                 # Il gioco a cui sta giocando è cambiato
                 await send_summary(after.guild)
+                await clear_previous_activity_messages(after.guild) # Cancella dopo un nuovo aggiornamento
 
 @bot.event
 async def on_voice_state_update(member, before, after):
     # Potrebbe essere necessario gestire anche i cambi di canale vocale se influiscono sull'attività
     if member.activity and member.activity.type == discord.ActivityType.playing:
         await send_summary(member.guild)
+        await clear_previous_activity_messages(member.guild) # Cancella dopo un cambio di stato vocale
 
 # Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
 TOKEN = os.environ.get('DISCORD_TOKEN')
