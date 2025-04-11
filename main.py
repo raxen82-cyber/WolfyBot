@@ -163,17 +163,17 @@ from discord import app_commands
 
 @bot.event
 async def on_ready():
-    print(f"Bot connesso come {bot.user}")
-    try:
-        synced = await bot.tree.sync()
-        print(f"Sincronizzati {len(synced)} comandi applicazione globalmente")
-    except Exception as e:
-        print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
+    print(f("Bot connesso come {bot.user}"))
+    try:
+        synced = await bot.tree.sync()
+        print(f("Sincronizzati {len(synced)} comandi applicazione globalmente"))
+    except Exception as e:
+        print(f("Errore durante la sincronizzazione dei comandi applicazione: {e}"))
 
-    send_periodic_summary.start()
-    daily_channel_cleanup.start()
-    send_weekly_stats.start()
-    send_inactivity_message.start()
+    send_periodic_summary.start()
+    daily_channel_cleanup.start()
+    send_weekly_stats.start()
+    send_inactivity_message.start()
 
 @tasks.loop(seconds=60)
 async def send_periodic_summary():
