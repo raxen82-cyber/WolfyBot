@@ -191,7 +191,7 @@ async def on_voice_state_update(member, before, after):
 
 @bot.event
 async def on_presence_update(before, after):
-    if after.activity and after.activity.type == discord.ActivityType.playing and after.member.voice and after.member.voice.channel:
+    if after.activity and after.activity.type == discord.ActivityType.playing and after.voice and after.voice.channel:
         now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
         await update_weekly_stats(after.member, after.activity.name, now)
     elif before.activity and before.activity.type == discord.ActivityType.playing and not after.activity:
