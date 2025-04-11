@@ -1,4 +1,5 @@
 discord.py
 python-dotenv
-matplotlib
 flask
+pytz
+aiohttp
