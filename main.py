@@ -218,19 +218,25 @@ async def pulisci_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("⚠️ Non hai i permessi per usare questo comando.")
 
+synced_once = False
+
 @bot.event
 async def on_ready():
+    global synced_once
     print(f"Bot connesso come {bot.user}")
     guild = bot.get_guild(TEST_GUILD_ID)
-    if guild:
+    if guild and not synced_once:
         try:
             synced = await bot.tree.sync(guild=guild)
             print(f"Sincronizzati {len(synced)} comandi applicazione nella guild '{guild.name}' ({guild.id})")
             print(f"Comandi sincronizzati: {synced}")
+            synced_once = True
         except Exception as e:
             print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
-    else:
+    elif not guild:
         print(f"Guild di test con ID {TEST_GUILD_ID} non trovata.")
+    elif synced_once:
+        print("Comandi slash già sincronizzati.")
 
     for g in bot.guilds:
         await send_summary(g, initial=True) # Invia il messaggio iniziale all'avvio
