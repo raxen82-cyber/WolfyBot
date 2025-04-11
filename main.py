@@ -104,14 +104,6 @@ async def daily_channel_cleanup():
 async def update_weekly_stats(member, game, start_time):
     weekly_stats[member.id].append({"game": game, "start_time": start_time.timestamp()})
 
-@bot.event
-async def on_presence_update(before, after):
-    if after.activity and after.activity.type == discord.ActivityType.playing and after.member.voice and after.member.voice.channel:
-        now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-        await update_weekly_stats(after.member, after.activity.name, now)
-    elif before.activity and before.activity.type == discord.ActivityType.playing and not after.activity:
-        pass
-
 @tasks.loop(hours=24 * 7)
 async def send_weekly_stats():
     now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
