@@ -1,9 +1,12 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-buster
 
 WORKDIR /app
 
-COPY . /app
-
+COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-CMD ["python3", "main.py"]
+COPY . .
+
+ENV PYTHONUNBUFFERED=1
+
+CMD ["/app/start_bot.sh"]
