@@ -159,21 +159,26 @@ app = Flask(__name__)
 def health_check():
     return "Bot is alive!"
 
+import discord
 from discord import app_commands
+
+TEST_GUILD_ID = 1173968763293536276  # Sostituisci con l'ID del tuo server di test
 
 @bot.event
 async def on_ready():
     print(f"Bot connesso come {bot.user}")
     try:
-        synced = await bot.tree.sync()
-        print(f"Sincronizzati {len(synced)} comandi applicazione globalmente")
+        guild = discord.Object(id=TEST_GUILD_ID)
+        synced = await bot.tree.sync(guild=guild)
+        print(f"Sincronizzati {len(synced)} comandi applicazione nella guild di test")
     except Exception as e:
         print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
 
-    send_periodic_summary.start()
-    daily_channel_cleanup.start()
-    send_weekly_stats.start()
-    send_inactivity_message.start()
+    # Commenta temporaneamente le altre task per isolare il problema dei comandi slash
+    # send_periodic_summary.start()
+    # daily_channel_cleanup.start()
+    # send_weekly_stats.start()
+    # send_inactivity_message.start()
 
 @tasks.loop(seconds=60)
 async def send_periodic_summary():
