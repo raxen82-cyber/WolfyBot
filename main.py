@@ -14,7 +14,7 @@ intents.presences = True
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='/', intents=intents)
 
 # Nomi dei canali
 TESTUALE_RIASSUNTO = "attività-giocatore"
