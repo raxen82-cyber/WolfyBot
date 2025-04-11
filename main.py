@@ -35,6 +35,7 @@ EMBED_COLORS = [
 player_colors = {}  # Dizionario per assegnare un colore unico a ciascun giocatore
 weekly_stats = defaultdict(list)  # Traccia l'attività settimanale dei giocatori
 summary_message_ids = {}  # Dizionario per memorizzare l'ID del messaggio di riepilogo per ogni server
+inactivity_message_ids = {} # Dizionario per memorizzare l'ID del messaggio di inattività
 
 BADGES = {
     "casual_gamer": "🎮",
@@ -82,12 +83,15 @@ async def send_summary(guild, initial=False):
                 # Il messaggio è stato eliminato, invia uno nuovo
                 new_message = await channel.send(embed=embed)
                 summary_message_ids[guild.id] = new_message.id
+                await clear_inactivity_message(guild) # Pulisci il messaggio di inattività se inviamo un nuovo riepilogo
             except discord.errors.Forbidden:
                 print(f"Non ho i permessi per modificare il messaggio in {channel.name} in {guild.name}")
         else:
             # Invia il messaggio iniziale
             new_message = await channel.send(embed=embed)
             summary_message_ids[guild.id] = new_message.id
+            if not initial: # Evita di pulire all'avvio se non c'è un messaggio di inattività
+                await clear_inactivity_message(guild)
 
 async def clear_previous_activity_messages(guild):
     channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
@@ -96,9 +100,9 @@ async def clear_previous_activity_messages(guild):
         if stored_message_id:
             try:
                 async for message in channel.history(limit=None, before=discord.Object(id=stored_message_id)):
-                    if message.author == bot.user:
+                    if message.author == bot.user and message.id != inactivity_message_ids.get(guild.id):
                         await message.delete()
-                print(f"Cancellati i messaggi di attività precedenti a {stored_message_id} nel canale {channel.name} in {guild.name}")
+                print(f"Cancellati i messaggi di attività precedenti a {stored_message_id} (escluso inattività) in {channel.name} in {guild.name}")
             except discord.NotFound:
                 print(f"Il messaggio di riferimento {stored_message_id} non è stato trovato in {channel.name} in {guild.name}")
             except discord.errors.Forbidden:
@@ -115,15 +119,36 @@ async def clear_channel(channel):
     except discord.errors.NotFound:
         print(f"Il canale '{channel.name}' non è stato trovato.")
 
+async def send_inactivity_message_to_channel(guild):
+    channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
+    if channel:
+        message = await channel.send(f"😴 Nessun giocatore attivo in nessun canale vocale.")
+        inactivity_message_ids[guild.id] = message.id
+
+async def clear_inactivity_message(guild):
+    channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
+    inactivity_id = inactivity_message_ids.get(guild.id)
+    if channel and inactivity_id:
+        try:
+            message = await channel.fetch_message(inactivity_id)
+            await message.delete()
+            inactivity_message_ids.pop(guild.id, None) # Rimuovi l'ID dopo l'eliminazione
+            print(f"Messaggio di inattività eliminato in {channel.name} in {guild.name}")
+        except discord.NotFound:
+            print(f"Messaggio di inattività con ID {inactivity_id} non trovato in {channel.name} in {guild.name}")
+        except discord.errors.Forbidden:
+            print(f"Non ho i permessi per eliminare il messaggio di inattività in {channel.name} in {guild.name}")
+
 # Task separata per inviare il messaggio di inattività ogni ora (SPOSATO PRIMA DI ON_READY)
 @tasks.loop(minutes=60)
 async def send_inactivity_message():
     now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
     if 10 <= now.hour < 24:
         for guild in bot.guilds:
-            channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
-            if channel and not await get_active_players(guild):
-                await channel.send(f"😴 Nessun giocatore attivo in nessun canale vocale.")
+            if not await get_active_players(guild):
+                await send_inactivity_message_to_channel(guild)
+            else:
+                await clear_inactivity_message(guild) # Pulisci se torna l'attività durante l'orario di inattività
 
 @tasks.loop(hours=24)
 async def daily_channel_cleanup():
@@ -133,6 +158,7 @@ async def daily_channel_cleanup():
             channel_to_clear = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
             if channel_to_clear:
                 await clear_channel(channel_to_clear)
+                inactivity_message_ids.pop(guild.id, None) # Pulisci anche l'ID del messaggio di inattività dopo la pulizia del canale
 
 async def update_weekly_stats(member, game, start_time):
     weekly_stats[member.id].append({"game": game, "start_time": start_time.timestamp()})
@@ -211,22 +237,36 @@ async def on_presence_update(before, after):
             if (not before.activity or before.activity.type != discord.ActivityType.playing) and (after.activity and after.activity.type == discord.ActivityType.playing):
                 # Un giocatore ha iniziato a giocare in un canale vocale
                 await send_summary(after.guild)
-                await clear_previous_activity_messages(after.guild) # Cancella dopo un nuovo aggiornamento
             elif (before.activity and before.activity.type == discord.ActivityType.playing) and (not after.activity or after.activity.type != discord.ActivityType.playing):
                 # Un giocatore ha smesso di giocare in un canale vocale
                 await send_summary(after.guild)
-                await clear_previous_activity_messages(after.guild) # Cancella dopo un nuovo aggiornamento
             elif before.activity and after.activity and before.activity.name != after.activity.name and after.activity.type == discord.ActivityType.playing:
                 # Il gioco a cui sta giocando è cambiato
                 await send_summary(after.guild)
-                await clear_previous_activity_messages(after.guild) # Cancella dopo un nuovo aggiornamento
 
 @bot.event
 async def on_voice_state_update(member, before, after):
     # Potrebbe essere necessario gestire anche i cambi di canale vocale se influiscono sull'attività
     if member.activity and member.activity.type == discord.ActivityType.playing:
         await send_summary(member.guild)
-        await clear_previous_activity_messages(member.guild) # Cancella dopo un cambio di stato vocale
+
+@bot.command(name="riassunto")
+async def manual_summary(ctx):
+    await send_summary(ctx.guild)
+    await clear_inactivity_message(ctx.guild) # Pulisci anche manualmente
+
+@bot.command(name="pulisci")
+@commands.has_permissions(manage_messages=True)
+async def pulisci(ctx, amount: int):
+    await ctx.channel.purge(limit=amount + 1)
+    await ctx.send(f"🧹 Puliti {amount} messaggi.", delete_after=5)
+    await clear_previous_activity_messages(ctx.guild) # Cancella i messaggi precedenti dopo la pulizia manuale
+    await clear_inactivity_message(ctx.guild) # Pulisci anche manualmente
+
+@pulisci.error
+async def pulisci_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("⚠️ Non hai i permessi per usare questo comando.")
 
 # Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
 if __name__ == '__main__':
