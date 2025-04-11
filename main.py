@@ -15,7 +15,7 @@ intents.presences = True
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='/', intents=intents) # Cambiato il prefisso in '!'
+bot = commands.Bot(command_prefix='/', intents=intents) # Prefisso impostato a '/' per i comandi con prefisso
 
 # Nomi dei canali
 TESTUALE_RIASSUNTO = "attività-giocatore"
@@ -260,6 +260,16 @@ async def on_voice_state_update(member, before, after):
     if member.activity and member.activity.type == discord.ActivityType.playing:
         await send_summary(member.guild)
         await clear_previous_activity_messages(member.guild) # Cancella dopo un cambio di stato vocale
+
+# Definizioni dei comandi slash (assicurati che siano qui)
+@bot.tree.command(name="infowolf", description="Mostra informazioni sul bot.")
+async def infowolf_command(interaction: discord.Interaction):
+    await interaction.response.send_message("Ciao! Sono WolfyBot.")
+
+@bot.tree.command(name="saluta", description="Saluta un utente.")
+@app_commands.describe(utente="L'utente da salutare")
+async def saluta_comando(interaction: discord.Interaction, utente: discord.Member):
+    await interaction.response.send_message(f"Ciao {utente.mention}!")
 
 # Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
 TOKEN = os.environ.get('DISCORD_TOKEN')
