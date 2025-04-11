@@ -280,12 +280,11 @@ async def infowolf_command(interaction: discord.Interaction):
 async def saluta_comando(interaction: discord.Interaction, utente: discord.Member):
     await interaction.response.send_message(f"Ciao {utente.mention}!")
 
-# Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
-TOKEN = os.environ.get('DISCORD_TOKEN')
-if TOKEN:
-    bot.run(TOKEN)
-else:
-    print("Errore: La variabile d'ambiente DISCORD_TOKEN non è impostata.")
-
 if __name__ == '__main__':
+    TOKEN = os.environ.get('DISCORD_TOKEN')
+    if TOKEN:
+        bot.run(TOKEN)
+    else:
+        print("Errore: La variabile d'ambiente DISCORD_TOKEN non è impostata.")
+        # Potresti anche decidere di non avviare l'app Flask in questo caso
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
