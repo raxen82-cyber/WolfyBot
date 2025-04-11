@@ -116,6 +116,16 @@ async def clear_channel(channel):
     except discord.errors.NotFound:
         print(f"Il canale '{channel.name}' non è stato trovato.")
 
+# Task separata per inviare il messaggio di inattività ogni ora (SPOSATO PRIMA DI ON_READY)
+@tasks.loop(minutes=60)
+async def send_inactivity_message():
+    now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+    if 10 <= now.hour < 24:
+        for guild in bot.guilds:
+            channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
+            if channel and not await get_active_players(guild):
+                await channel.send(f"😴 Nessun giocatore attivo in nessun canale vocale.")
+
 @tasks.loop(hours=24)
 async def daily_channel_cleanup():
     now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
@@ -221,9 +231,9 @@ async def on_ready():
     for guild in bot.guilds:
         await send_summary(guild, initial=True) # Invia il messaggio iniziale all'avvio
 
+    send_inactivity_message.start() # Avvia il task di inattività
     daily_channel_cleanup.start()
     send_weekly_stats.start()
-    send_inactivity_message.start()
 
 @bot.event
 async def on_presence_update(before, after):
