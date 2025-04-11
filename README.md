@@ -1,3 +1,3 @@
-# Wolfy Bot (Fly.io Edition)
+# Wolfy Bot by raxen
 
-Deployable Discord bot per Fly.io.
+Deployable Discord bot
