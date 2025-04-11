@@ -15,7 +15,7 @@ intents.presences = True
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='/', intents=intents) # Cambiato il prefisso in '!'
+bot = commands.Bot(command_prefix='!', intents=intents) # Cambiato il prefisso in '!'
 
 # Nomi dei canali
 TESTUALE_RIASSUNTO = "attività-giocatore"
@@ -35,6 +35,7 @@ EMBED_COLORS = [
 
 player_colors = {}  # Dizionario per assegnare un colore unico a ciascun giocatore
 weekly_stats = defaultdict(list)  # Traccia l'attività settimanale dei giocatori
+summary_message_ids = {}  # Dizionario per memorizzare l'ID del messaggio di riepilogo per ogni server
 
 BADGES = {
     "casual_gamer": "🎮",
@@ -42,7 +43,7 @@ BADGES = {
     "most_active": "🏆"
 }
 
-TEST_GUILD_ID = 1173968763293536276  # Sostituisci con l'ID del tuo server di test
+TEST_GUILD_ID = "1173968763293536276"  # Sostituisci con l'ID del tuo server di test
 
 async def get_active_players(guild):
     active_players = []
@@ -53,38 +54,41 @@ async def get_active_players(guild):
                 player_colors[member.id] = random.choice(EMBED_COLORS)
     return active_players
 
-async def send_summary(guild):
-    now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-    if 10 <= now.hour < 24:  # Invia messaggi tra le 10:00 e le 23:59
-        channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
-        if channel:
-            active_players = await get_active_players(guild)
-            if active_players:
-                embed = discord.Embed(
-                    title=f"🎮 Giocatori Attivi",
-                    color=discord.Color.blurple()
-                )
-                if guild.icon:
-                    embed.set_thumbnail(url=guild.icon.url)
-                for member in active_players:
-                    color = player_colors.get(member.id, discord.Color.default())
-                    embed.add_field(
-                        name=member.display_name,
-                        value=f"Sta giocando a: {member.activity.name}",
-                        inline=True
-                    )
-                    embed.color = color
-                await channel.send(embed=embed)
+async def send_summary(guild, initial=False):
+    channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
+    if channel:
+        active_players = await get_active_players(guild)
+        embed = discord.Embed(
+            title=f"🎮 Giocatori Attivi",
+            color=discord.Color.blurple()
+        )
+        if guild.icon:
+            embed.set_thumbnail(url=guild.icon.url)
+        for member in active_players:
+            color = player_colors.get(member.id, discord.Color.default())
+            embed.add_field(
+                name=member.display_name,
+                value=f"Sta giocando a: {member.activity.name}",
+                inline=True
+            )
+            embed.color = color
 
-# Task separata per inviare il messaggio di inattività ogni ora
-@tasks.loop(minutes=60)
-async def send_inactivity_message():
-    now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-    if 10 <= now.hour < 24:
-        for guild in bot.guilds:
-            channel = discord.utils.get(guild.text_channels, name=TESTUALE_RIASSUNTO)
-            if channel and not await get_active_players(guild):
-                await channel.send(f"😴 Nessun giocatore attivo in nessun canale vocale.")
+        stored_message_id = summary_message_ids.get(guild.id)
+
+        if stored_message_id:
+            try:
+                message = await channel.fetch_message(stored_message_id)
+                await message.edit(embed=embed)
+            except discord.NotFound:
+                # Il messaggio è stato eliminato, invia uno nuovo
+                new_message = await channel.send(embed=embed)
+                summary_message_ids[guild.id] = new_message.id
+            except discord.errors.Forbidden:
+                print(f"Non ho i permessi per modificare il messaggio in {channel.name} in {guild.name}")
+        else:
+            # Invia il messaggio iniziale
+            new_message = await channel.send(embed=embed)
+            summary_message_ids[guild.id] = new_message.id
 
 async def clear_channel(channel):
     try:
@@ -190,34 +194,39 @@ async def pulisci_error(ctx, error):
 async def on_ready():
     print(f"Bot connesso come {bot.user}")
     try:
-        guild = discord.Object(id=TEST_GUILD_ID)
+        guild = discord.Object(id=TEST_GUILD_ID) # Sincronizza i comandi solo nella guild di test
         synced = await bot.tree.sync(guild=guild)
         print(f"Sincronizzati {len(synced)} comandi applicazione nella guild di test")
     except Exception as e:
         print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
 
-    send_periodic_summary.start()
+    for guild in bot.guilds:
+        await send_summary(guild, initial=True) # Invia il messaggio iniziale all'avvio
+
     daily_channel_cleanup.start()
     send_weekly_stats.start()
     send_inactivity_message.start()
 
-@tasks.loop(seconds=60)
-async def send_periodic_summary():
-    now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-    if 10 <= now.hour < 24:
-        for guild in bot.guilds:
-            await send_summary(guild)
-
-@bot.event
-async def on_voice_state_update(member, before, after):
-    pass # Rimossa la chiamata ridondante a send_summary
-
 @bot.event
 async def on_presence_update(before, after):
     if isinstance(after, discord.Member):
-        now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-        if after.activity and after.activity.type == discord.ActivityType.playing and after.voice and after.voice.channel:
-            await update_weekly_stats(after, after.activity.name, now)
+        if after.voice and after.voice.channel:
+            # Controlla se l'attività di gioco è cambiata
+            if (not before.activity or before.activity.type != discord.ActivityType.playing) and (after.activity and after.activity.type == discord.ActivityType.playing):
+                # Un giocatore ha iniziato a giocare in un canale vocale
+                await send_summary(after.guild)
+            elif (before.activity and before.activity.type == discord.ActivityType.playing) and (not after.activity or after.activity.type != discord.ActivityType.playing):
+                # Un giocatore ha smesso di giocare in un canale vocale
+                await send_summary(after.guild)
+            elif before.activity and after.activity and before.activity.name != after.activity.name and after.activity.type == discord.ActivityType.playing:
+                # Il gioco a cui sta giocando è cambiato
+                await send_summary(after.guild)
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    # Potrebbe essere necessario gestire anche i cambi di canale vocale se influiscono sull'attività
+    if member.activity and member.activity.type == discord.ActivityType.playing:
+        await send_summary(member.guild)
 
 # Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
 TOKEN = os.environ.get('DISCORD_TOKEN')
