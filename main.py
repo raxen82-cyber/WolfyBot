@@ -15,7 +15,7 @@ intents.presences = True
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='!', intents=intents) # Cambiato il prefisso in '!'
+bot = commands.Bot(command_prefix='/', intents=intents) # Cambiato il prefisso in '!'
 
 # Nomi dei canali
 TESTUALE_RIASSUNTO = "attività-giocatore"
