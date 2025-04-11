@@ -5,8 +5,7 @@ import random
 import datetime
 import pytz
 from collections import defaultdict
-from threading import Thread
-from flask import Flask, request
+from flask import Flask
 
 # Assicurati che questi privileged intents siano abilitati nel Developer Portal
 intents = discord.Intents.default()
@@ -166,20 +165,11 @@ app = Flask(__name__)
 
 @app.route('/')
 def health_check():
-    return "Bot è attivo!"
-
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-
-def keep_alive():
-    server = Thread(target=run_flask)
-    server.daemon = True
-    server.start()
+    return "Bot is alive!"
 
 @bot.event
 async def on_ready():
     print(f"Bot connesso come {bot.user}")
-    keep_alive()
     send_periodic_summary.start()
     daily_channel_cleanup.start()
     send_weekly_stats.start()
@@ -222,9 +212,12 @@ async def pulisci_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("⚠️ Non hai i permessi per usare questo comando.")
 
-# Ottieni il token Discord dalla variabile d'ambiente
+# Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
 TOKEN = os.environ.get('DISCORD_TOKEN')
 if TOKEN:
     bot.run(TOKEN)
 else:
     print("Errore: La variabile d'ambiente DISCORD_TOKEN non è impostata.")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
