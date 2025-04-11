@@ -48,9 +48,11 @@ async def get_active_players(guild):
     active_players = []
     for member in guild.members:
         if member.voice and member.voice.channel and member.activity and member.activity.type == discord.ActivityType.playing:
-            active_players.append(member)
-            if member.id not in player_colors:
-                player_colors[member.id] = random.choice(EMBED_COLORS)
+            # Ignora i membri nel canale AFK
+            if guild.afk_channel is None or member.voice.channel != guild.afk_channel:
+                active_players.append(member)
+                if member.id not in player_colors:
+                    player_colors[member.id] = random.choice(EMBED_COLORS)
     return active_players
 
 async def send_summary(guild, initial=False):
@@ -114,8 +116,6 @@ async def clear_channel(channel):
         print(f"Non ho i permessi per pulire il canale '{channel.name}'.")
     except discord.errors.NotFound:
         print(f"Il canale '{channel.name}' non è stato trovato.")
-
-# RIMOSSA la funzione send_inactivity_message e clear_inactivity_message
 
 @tasks.loop(hours=24)
 async def daily_channel_cleanup():
@@ -190,8 +190,6 @@ async def on_ready():
 
     for g in bot.guilds:
         await send_summary(g, initial=True) # Invia il messaggio iniziale all'avvio
-
-    # RIMOSSA send_inactivity_message.start()
 
     daily_channel_cleanup.start()
     send_weekly_stats.start()
