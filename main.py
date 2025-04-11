@@ -164,7 +164,6 @@ from discord import app_commands
 @bot.event
 async def on_ready():
     print(f"Bot connesso come {bot.user}")
-    # Forza una sincronizzazione globale dei comandi applicazione (potrebbe volerci un po' di tempo per aggiornarsi)
     try:
         synced = await bot.tree.sync()
         print(f"Sincronizzati {len(synced)} comandi applicazione globalmente")
