@@ -6,7 +6,6 @@ import datetime
 import pytz
 from collections import defaultdict
 from flask import Flask
-from discord import app_commands
 
 # Assicurati che questi privileged intents siano abilitati nel Developer Portal
 intents = discord.Intents.default()
@@ -193,50 +192,9 @@ app = Flask(__name__)
 def health_check():
     return "Bot is alive!"
 
-@bot.tree.command(name="infowolf", description="Mostra informazioni sul bot.")
-async def infowolf_command(interaction: discord.Interaction):
-    await interaction.response.send_message("Ciao! Sono WolfyBot.")
-
-@bot.tree.command(name="saluta", description="Saluta un utente.")
-@app_commands.describe(utente="L'utente da salutare")
-async def saluta_comando(interaction: discord.Interaction, utente: discord.Member):
-    await interaction.response.send_message(f"Ciao {utente.mention}!")
-
-@bot.command(name="riassunto")
-async def manual_summary(ctx):
-    await send_summary(ctx.guild)
-
-@bot.command(name="pulisci")
-@commands.has_permissions(manage_messages=True)
-async def pulisci(ctx, amount: int):
-    await ctx.channel.purge(limit=amount + 1)
-    await ctx.send(f"🧹 Puliti {amount} messaggi.", delete_after=5)
-    await clear_previous_activity_messages(ctx.guild) # Cancella i messaggi precedenti dopo la pulizia manuale
-
-@pulisci.error
-async def pulisci_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("⚠️ Non hai i permessi per usare questo comando.")
-
-synced_once = False
-
 @bot.event
 async def on_ready():
-    global synced_once
     print(f"Bot connesso come {bot.user}")
-    guild = bot.get_guild(TEST_GUILD_ID)
-    if guild and not synced_once:
-        try:
-            synced = await bot.tree.sync(guild=guild)
-            print(f"Sincronizzati {len(synced)} comandi applicazione nella guild '{guild.name}' ({guild.id})")
-            print(f"Comandi sincronizzati: {synced}")
-            synced_once = True
-        except Exception as e:
-            print(f"Errore durante la sincronizzazione dei comandi applicazione: {e}")
-    elif not guild:
-        print(f"Guild di test con ID {TEST_GUILD_ID} non trovata.")
-    elif synced_once:
-        print("Comandi slash già sincronizzati.")
 
     for g in bot.guilds:
         await send_summary(g, initial=True) # Invia il messaggio iniziale all'avvio
@@ -270,16 +228,7 @@ async def on_voice_state_update(member, before, after):
         await send_summary(member.guild)
         await clear_previous_activity_messages(member.guild) # Cancella dopo un cambio di stato vocale
 
-# Definizioni dei comandi slash (assicurati che siano qui)
-@bot.tree.command(name="infowolf", description="Mostra informazioni sul bot.")
-async def infowolf_command(interaction: discord.Interaction):
-    await interaction.response.send_message("Ciao! Sono WolfyBot.")
-
-@bot.tree.command(name="saluta", description="Saluta un utente.")
-@app_commands.describe(utente="L'utente da salutare")
-async def saluta_comando(interaction: discord.Interaction, utente: discord.Member):
-    await interaction.response.send_message(f"Ciao {utente.mention}!")
-
+# Ottieni il token Discord dalla variabile d'ambiente e avvia il bot
 if __name__ == '__main__':
     TOKEN = os.environ.get('DISCORD_TOKEN')
     if TOKEN:
